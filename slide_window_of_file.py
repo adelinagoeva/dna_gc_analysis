@@ -6,9 +6,12 @@
 #                                                                              #
 ################################################################################
 
+import os
 import sys
+import matplotlib.pyplot as plt
 
 from typing import NamedTuple
+from datetime import datetime
 
 # Counter for bases in calculated slice
 class BasesCount( NamedTuple ):
@@ -16,6 +19,7 @@ class BasesCount( NamedTuple ):
     T_cnt: int
     G_cnt: int
     C_cnt: int
+    GC_ratio: float
 
 # List of calculated bases per slide
 records_list = []
@@ -38,7 +42,13 @@ def count_bases( dna ) -> BasesCount:
             case "C":
                 C_count +=1
 
-    return BasesCount( A_cnt = A_count, T_cnt = T_count, G_cnt = G_count, C_cnt = C_count )
+    total_bases = A_count + T_count + G_count + C_count
+    if total_bases > 0:
+        GC_percent = 100 * ( ( G_count + C_count ) / ( A_count + T_count + G_count + C_count ) )
+    else:
+        GC_percent = 0.0
+
+    return BasesCount( A_cnt = A_count, T_cnt = T_count, G_cnt = G_count, C_cnt = C_count, GC_ratio = GC_percent )
 
 
 # check input arguments.
@@ -94,22 +104,29 @@ if dna_chunk[ 0 ] != ">":
     sys.exit( 3 )
 
 not_last_chunk_flag = True
+fragment = ""
 while not_last_chunk_flag:
     # read twice as much data as the window size,
     # then clean up from new lines.
-    dna_chunk = dna_file.read( 30 )
-    if len( dna_chunk ) < 30:
+    dna_chunk = dna_file.read( 2 * window_size )
+    if len( dna_chunk ) < 2 * window_size:
         not_last_chunk_flag = False
         print( "Last chuk read." )
 
     dna_chunk = dna_chunk.replace("\r", "").replace("\n", "")
+    dna_chunk = fragment + dna_chunk
     chunk_length = len( dna_chunk )
     print( f"Cleaned chunk has length = {chunk_length}" )
 
     position = 0
+    fragment = ""
     while position < chunk_length:
         if position + window_size > chunk_length:
             print( f"Leftover is smaller : position = {position}" )
+            if not_last_chunk_flag:
+                fragment = dna_chunk[ position : ] 
+                break
+
             data_chunk_one = dna_chunk[ position : position + int( chunk_length / 2 ) ]
             position += int( chunk_length / 2 )
             data_chunk_two = dna_chunk[ position : ] # get bytes from position to the end of the dna_chunk.
@@ -130,6 +147,50 @@ while not_last_chunk_flag:
 dna_file.close()
 
 print( f"Number of calculated slides: {len( records_list ) }" )
+# print( records_list )
 
-print( records_list )
+windows_avg_gc = []
+list_size = len( records_list )
+for index in range( 0, list_size, 2 ):
+    if index + 1 < list_size:
+        slide_one = records_list[ index ]
+        slide_two = records_list[ index + 1 ]
+        windows_gc_ratio = ( slide_one.GC_ratio + slide_two.GC_ratio ) / 2
+        windows_avg_gc.append( windows_gc_ratio )
+    else:
+        # if our records are odd, the last value cannot be paired. Use it as is.
+        windows_avg_gc.append( records_list[ index ].GC_ratio )
+
+x_positions = [ i * window_size for i in range ( len( windows_avg_gc ) ) ]
+
+plt.figure( figsize = ( 10, 5 ) )
+
+plt.plot( x_positions, windows_avg_gc, color = "teal", linestyle = '-', marker = 'o', linewidth = 2, label = 'GC % per window' )
+
+total_avg = sum( windows_avg_gc) / len( windows_avg_gc )
+plt.axhline( y = total_avg, color = 'crimson', linestyle = '--', linewidth = 1.5, label =f'Total average ({total_avg:.2f}%)' )
+
+plt.title( "Change in GC-content throughout the genome", fontsize = 14, fontweight = 'bold' )
+plt.xlabel( "Position in genome (number of bases)", fontsize = 12 )
+plt.ylabel( "Average GC, %", fontsize = 12 )
+
+plt.legend( loc = 'upper right' )
+
+plt.grid( True, linestyle='--', alpha = 0.5 )
+
+plt.tight_layout()
+
+# plt.show()
+file_name = os.path.basename( dna_filename )
+organism_name = file_name.split( '.')[0]
+current_timestamp= datetime.now().strftime( "%Y%m%d_%H%M%S" )
+image_name = f"{organism_name}.gc_content.{current_timestamp}.png"
+
+plt.savefig( image_name, dpi = 300, bbox_inches = 'tight' )
+print( f"The graph was successfully saved in file '{image_name}' on disk" )
+
+# print( "Average GC% for each Window:" )
+# for gc in windows_avg_gc:
+#     print( gc )
+# 
 
