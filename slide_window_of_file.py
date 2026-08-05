@@ -51,6 +51,39 @@ def count_bases( dna ) -> BasesCount:
 
     return BasesCount( A_cnt = A_count, T_cnt = T_count, G_cnt = G_count, C_cnt = C_count, GC_ratio = GC_percent )
 
+def create_graph( list_of_data, window_type ):
+    print( "\nPrepare MatPlotLib to create an graph from the data in the list." )
+    x_positions = [ i * window_size for i in range ( len( list_of_data ) ) ]
+
+    plt.figure( figsize = ( 10, 5 ) )
+
+    plt.plot( x_positions, list_of_data, color = "teal", linestyle = '-', marker = None, linewidth = 1, label = 'GC % per window' )
+
+    total_avg = sum( list_of_data) / len( list_of_data )
+    plt.axhline( y = total_avg, color = 'crimson', linestyle = '--', linewidth = 1.5, label =f'Total average ({total_avg:.2f}%)' )
+
+    file_name = os.path.basename( dna_filename )
+    organism_name = file_name.split( '.')[0]
+
+    plt.title( f"{organism_name} GC-content changes", fontsize = 14, fontweight = 'bold' )
+    plt.xlabel( "Position in genome (number of bases)", fontsize = 12 )
+    plt.ylabel( "Average GC, %", fontsize = 12 )
+
+    plt.legend( loc = 'upper right' )
+
+    plt.grid( True, linestyle='--', alpha = 0.7 )
+
+    plt.tight_layout()
+
+    # plt.show()
+    # get the name of the bacteria from fasta filename.
+    file_name = os.path.basename( dna_filename )
+    organism_name = file_name.split( '.')[0]
+    current_timestamp= datetime.now().strftime( "%Y%m%d_%H%M%S" )
+    image_name = f"{organism_name}.{window_type}.gc_content.{current_timestamp}.png"
+
+    plt.savefig( image_name, dpi = 300, bbox_inches = 'tight' )
+    print( f"The graph was successfully saved in file '{image_name}' on disk\n" )
 
 # check input arguments.
 if len( sys.argv ) != 4:
@@ -155,59 +188,54 @@ dna_file.close()
 print( f"{len( records_list ) } slides was calculated from provided fasta file." )
 # print( records_list )
 
+# ------------------------- NON-Overlapping windows ------------------------- #
 print( "\nPrepare a list of non-overlaping windows of GC ratio." )
 # each window is made up of two adjacent slides.
-windows_avg_gc = []
+non_overlapping_windows_avg_gc = []
 list_size = len( records_list )
 for index in range( 0, list_size, 2 ):
     if index + 1 < list_size:
         slide_one = records_list[ index ]
         slide_two = records_list[ index + 1 ]
         windows_gc_ratio = ( slide_one.GC_ratio + slide_two.GC_ratio ) / 2
-        windows_avg_gc.append( windows_gc_ratio )
+        non_overlapping_windows_avg_gc.append( windows_gc_ratio )
     else:
         # if our records are odd, the last value cannot be paired. Use it as is.
-        windows_avg_gc.append( records_list[ index ].GC_ratio )
+        non_overlapping_windows_avg_gc.append( records_list[ index ].GC_ratio )
 
-print( f"{len( windows_avg_gc )} non-overlaping windows was prepared from provided fasta file." )
+print( f"{len( non_overlapping_windows_avg_gc )} non-overlaping windows was prepared from provided fasta file." )
 
-print( "\nPrepare MatPlotLib to create an graph from the data in the list." )
-x_positions = [ i * window_size for i in range ( len( windows_avg_gc ) ) ]
+# ------------------------- Overlapping windows ------------------------- #
+print( "\nPrepare a list of overlaping windows of GC ratio." )
+# each window is made up of two adjacent slides.
+overlapping_windows_avg_gc = []
+list_size = len( records_list )
+for index in range( 0, list_size, 1 ):
+    if index + 1 < list_size:
+        slide_one = records_list[ index ]
+        slide_two = records_list[ index + 1 ]
+        windows_gc_ratio = ( slide_one.GC_ratio + slide_two.GC_ratio ) / 2
+        overlapping_windows_avg_gc.append( windows_gc_ratio )
+    else:
+        # if our records are odd, the last value cannot be paired. Use it as is.
+        overlapping_windows_avg_gc.append( records_list[ index ].GC_ratio )
 
-plt.figure( figsize = ( 10, 5 ) )
+print( f"{len( overlapping_windows_avg_gc )} overlaping windows was prepared from provided fasta file." )
 
-# plt.plot( x_positions, windows_avg_gc, color = "teal", linestyle = '-', marker = 'o', linewidth = 2, label = 'GC % per window' )
-plt.plot( x_positions, windows_avg_gc, color = "teal", linestyle = '-', marker = None, linewidth = 1, label = 'GC % per window' )
+# ------------------------- Prepare png graphs ------------------------- #
+create_graph( non_overlapping_windows_avg_gc, "non_overlapping" )
+create_graph( overlapping_windows_avg_gc, "overlapping" )
 
-total_avg = sum( windows_avg_gc) / len( windows_avg_gc )
-plt.axhline( y = total_avg, color = 'crimson', linestyle = '--', linewidth = 1.5, label =f'Total average ({total_avg:.2f}%)' )
-
-file_name = os.path.basename( dna_filename )
-organism_name = file_name.split( '.')[0]
-
-plt.title( f"{organism_name} GC-content changes", fontsize = 14, fontweight = 'bold' )
-plt.xlabel( "Position in genome (number of bases)", fontsize = 12 )
-plt.ylabel( "Average GC, %", fontsize = 12 )
-
-plt.legend( loc = 'upper right' )
-
-plt.grid( True, linestyle='--', alpha = 0.7 )
-
-plt.tight_layout()
-
-# plt.show()
-# get the name of the bacteria from fasta filename.
-file_name = os.path.basename( dna_filename )
-organism_name = file_name.split( '.')[0]
-current_timestamp= datetime.now().strftime( "%Y%m%d_%H%M%S" )
-image_name = f"{organism_name}.gc_content.{current_timestamp}.png"
-
-plt.savefig( image_name, dpi = 300, bbox_inches = 'tight' )
-print( f"The graph was successfully saved in file '{image_name}' on disk\n" )
-
+print( "\n=======================\nNon-Overlapping Windows" )
 print( "Print the average GC ratio for each window:" )
 print( "num : data (%)\n==============" )
-for i, gc in enumerate( windows_avg_gc, start=1 ):
+for i, gc in enumerate( non_overlapping_windows_avg_gc, start=1 ):
+    print( f"{i:04d}: {gc:.3f}" )
+
+print( "\n====================\nOverlapping Windows" )
+print( "Print the average GC ratio for each window:" )
+print( "num : data (%)\n==============" )
+for i, gc in enumerate( overlapping_windows_avg_gc, start=1 ):
     print( f"{i:04d}: {gc:.3f}" )
 
 stop_time = datetime.now()
