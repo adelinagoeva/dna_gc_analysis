@@ -46,6 +46,7 @@ def count_bases( dna ) -> BasesCount:
     if total_bases > 0:
         GC_percent = 100 * ( ( G_count + C_count ) / ( A_count + T_count + G_count + C_count ) )
     else:
+        print( f"count_bases : A = {A_count}, T = {T_count}, G = {G_count}, C = {C_count} : GC_percent will be set as 0.0" )
         GC_percent = 0.0
 
     return BasesCount( A_cnt = A_count, T_cnt = T_count, G_cnt = G_count, C_cnt = C_count, GC_ratio = GC_percent )
@@ -67,9 +68,11 @@ except ValueError:
     sys.exit( 1 )
 
 
+start_time = datetime.now()
+print( f"{start_time:%Y-%m-%d %H:%M:%S} : begin of {sys.argv[ 0 ]}" )
 print( f"DNA filename : {dna_filename}" )
 print( f"Window size  : {window_size}" )
-print( f"Slide length : {slide_length}" )
+print( f"Slide length : {slide_length}\n" )
 
 if 2 * slide_length != window_size:
     print( "Window size shall be twice larger than a Slde length." )
@@ -103,6 +106,7 @@ if dna_chunk[ 0 ] != ">":
     print( "Wrong header format." )
     sys.exit( 3 )
 
+print( "\nCalculate GC ratio for each slide." )
 not_last_chunk_flag = True
 fragment = ""
 while not_last_chunk_flag:
@@ -111,28 +115,30 @@ while not_last_chunk_flag:
     dna_chunk = dna_file.read( 2 * window_size )
     if len( dna_chunk ) < 2 * window_size:
         not_last_chunk_flag = False
-        print( "Last chuk read." )
+#        print( "Last chunk of DNA file was read." )
 
     dna_chunk = dna_chunk.replace("\r", "").replace("\n", "")
     dna_chunk = fragment + dna_chunk
     chunk_length = len( dna_chunk )
-    print( f"Cleaned chunk has length = {chunk_length}" )
+#    print( f"Cleaned chunk has length = {chunk_length}" )
+    if chunk_length == 0:
+        break
 
     position = 0
     fragment = ""
     while position < chunk_length:
         if position + window_size > chunk_length:
-            print( f"Leftover is smaller : position = {position}" )
+#            print( f"Leftover is smaller : position = {position}/{chunk_length}" )
             if not_last_chunk_flag:
                 fragment = dna_chunk[ position : ] 
                 break
 
-            data_chunk_one = dna_chunk[ position : position + int( chunk_length / 2 ) ]
-            position += int( chunk_length / 2 )
-            data_chunk_two = dna_chunk[ position : ] # get bytes from position to the end of the dna_chunk.
-            position = chunk_length
+            middle = int( ( position + chunk_length ) / 2 )
+            data_chunk_one = dna_chunk[ position : middle ]
+            data_chunk_two = dna_chunk[ middle : ] # get bytes from position to the end of the dna_chunk.
+            position = chunk_length # no need this assignment.
         else:
-            print( f"Regular size of slide : position = {position}" )
+#            print( f"Regular size of slide : position = {position}" )
             data_chunk_one = dna_chunk[ position : position + slide_length ]
             position += slide_length
             data_chunk_two = dna_chunk[ position : position + slide_length ]
@@ -146,9 +152,11 @@ while not_last_chunk_flag:
 
 dna_file.close()
 
-print( f"Number of calculated slides: {len( records_list ) }" )
+print( f"{len( records_list ) } slides was calculated from provided fasta file." )
 # print( records_list )
 
+print( "\nPrepare a list of non-overlaping windows of GC ratio." )
+# each window is made up of two adjacent slides.
 windows_avg_gc = []
 list_size = len( records_list )
 for index in range( 0, list_size, 2 ):
@@ -161,36 +169,47 @@ for index in range( 0, list_size, 2 ):
         # if our records are odd, the last value cannot be paired. Use it as is.
         windows_avg_gc.append( records_list[ index ].GC_ratio )
 
+print( f"{len( windows_avg_gc )} non-overlaping windows was prepared from provided fasta file." )
+
+print( "\nPrepare MatPlotLib to create an graph from the data in the list." )
 x_positions = [ i * window_size for i in range ( len( windows_avg_gc ) ) ]
 
 plt.figure( figsize = ( 10, 5 ) )
 
-plt.plot( x_positions, windows_avg_gc, color = "teal", linestyle = '-', marker = 'o', linewidth = 2, label = 'GC % per window' )
+# plt.plot( x_positions, windows_avg_gc, color = "teal", linestyle = '-', marker = 'o', linewidth = 2, label = 'GC % per window' )
+plt.plot( x_positions, windows_avg_gc, color = "teal", linestyle = '-', marker = None, linewidth = 1, label = 'GC % per window' )
 
 total_avg = sum( windows_avg_gc) / len( windows_avg_gc )
 plt.axhline( y = total_avg, color = 'crimson', linestyle = '--', linewidth = 1.5, label =f'Total average ({total_avg:.2f}%)' )
 
-plt.title( "Change in GC-content throughout the genome", fontsize = 14, fontweight = 'bold' )
+file_name = os.path.basename( dna_filename )
+organism_name = file_name.split( '.')[0]
+
+plt.title( f"{organism_name} GC-content changes", fontsize = 14, fontweight = 'bold' )
 plt.xlabel( "Position in genome (number of bases)", fontsize = 12 )
 plt.ylabel( "Average GC, %", fontsize = 12 )
 
 plt.legend( loc = 'upper right' )
 
-plt.grid( True, linestyle='--', alpha = 0.5 )
+plt.grid( True, linestyle='--', alpha = 0.7 )
 
 plt.tight_layout()
 
 # plt.show()
+# get the name of the bacteria from fasta filename.
 file_name = os.path.basename( dna_filename )
 organism_name = file_name.split( '.')[0]
 current_timestamp= datetime.now().strftime( "%Y%m%d_%H%M%S" )
 image_name = f"{organism_name}.gc_content.{current_timestamp}.png"
 
 plt.savefig( image_name, dpi = 300, bbox_inches = 'tight' )
-print( f"The graph was successfully saved in file '{image_name}' on disk" )
+print( f"The graph was successfully saved in file '{image_name}' on disk\n" )
 
-# print( "Average GC% for each Window:" )
-# for gc in windows_avg_gc:
-#     print( gc )
-# 
+print( "Print the average GC ratio for each window:" )
+print( "num : data (%)\n==============" )
+for i, gc in enumerate( windows_avg_gc, start=1 ):
+    print( f"{i:04d}: {gc:.3f}" )
+
+stop_time = datetime.now()
+print( f"\n{stop_time:%Y-%m-%d %H:%M:%S} : end of {sys.argv[ 0 ]}" )
 
