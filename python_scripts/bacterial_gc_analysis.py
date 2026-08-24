@@ -21,16 +21,21 @@ CALC_SCRIPT_2 = (
 )
 PLOT_SCRIPTS_2 = {
     "1": (
+        "Scatter plot for GC",
+        SCRIPTS_DIR_2 / "scatter_gc_from_cds_of_bacterial_groups.py",
+        "scatter_gc.png",
+    ),
+    "2": (
         "Scatter plot for GC3",
         SCRIPTS_DIR_2 / "scatter_gc3_from_cds_of_bacterial_groups.py",
         "scatter_gc3.png",
     ),
-    "2": (
+    "3": (
         "Scatter plot for both GC and GC3 (at the same place)",
         SCRIPTS_DIR_2 / "scatter_gc__gc3_from_cds_of_bacterial_groups.py",
         "scatter_gc__gc3.png",
     ),
-    "3": (
+    "4": (
         "Scatter plot for GC versus GC3 (GC to GC3)",
         SCRIPTS_DIR_2 / "scatter_gc_to_gc3_from_cds_of_bacterial_groups.py",
         "scatter_gc_to_gc3.png",
@@ -69,9 +74,9 @@ def setup_readline():
 
 
 def print_header():
-    print( "=" * 63 )
+    print( "=" * 65 )
     print( "    BIOINFORMATICS TOOL FOR GC AND GC3 ANALYSIS OF GENOMES    " )
-    print( "=" * 63 )
+    print( "=" * 65 )
 
 
 def check_scripts():
@@ -102,13 +107,13 @@ def check_scripts():
         sys.exit( 1 )
 
 
-def get_genome_files():
-    """Interactive collecting information about .cds.fna and .genomic.fna files."""
-    print( "\n--- Choose genomic/cds FNA files ---" )
-    print( "💡 Files and directories autocompletion with TAB is available." )
-    print( "Possible way to include data files:" )
-    print( "  1. Path to directory and file pattern ('./Mesophiles/*.cds.fna')" )
-    print( "  2. Point single file ('./Mesophiles/Escherichia_coli.cds.fna')" )
+def get_genome_files( file_format ):
+    """Interactive collecting information about .genomic.fna or .cds.fna files."""
+    print( f"\n--- Choose {file_format} files ---" )
+    print( "\n💡 Files and directories autocompletion with TAB is available." )
+    print( "\nPossible way to include data files:" )
+    print( f"  1. Path to directory and file pattern ('./Mesophiles/*{file_format}')" )
+    print( f"  2. Point single file ('./Mesophiles/Escherichia_coli{file_format}')" )
     print( "  3. Press ENTER (empty line), once ready with data files." )
     print( "-" * 65 )
 
@@ -151,10 +156,10 @@ def get_genome_files():
 def run_option_1():
     ensure_results_dir()
     print( "\n" + "=" * 65 )
-    print( "OPTION 1: GC ANALYSIS FROM WHOLE DNA GENOME (GC from genome)" )
+    print( "--- OPTION 1: Whole Genome Analysis (GC) ------------------------" )
     print( "=" * 65 )
 
-    genome_files = get_genome_files()
+    genome_files = get_genome_files( ".genomic.fna" )
     print( f"\n[DONE] {len(genome_files)} genomic files choosen." )
 
     print( "\n--- Configure sorting ---" )
@@ -213,14 +218,14 @@ def run_option_1():
 def run_option_2():
     ensure_results_dir()
     print( "\n" + "=" * 65 )
-    print( "OPTION 2: GC AND GC3 ANALYSIS FROM CDS (GC and GC3 from CDS)" )
+    print( "--- OPTION 2: CDS Analysis (GC/GC3) -----------------------------" )
     print( "=" * 65 )
 
-    genome_files = get_genome_files()
+    genome_files = get_genome_files( ".cds.fna" )
     print( f"\n[DONE] Selected {len(genome_files)} CDS files." )
 
     print( "\n--- Configure sorting ---" )
-    sort_flag = input( "Sorting flag (sort/nosort) [nosort]: " ).strip() or "nosort"
+    sort_flag = input( "Sorting flag (gcsort/gc3sort/nosort) [nosort]: " ).strip() or "nosort"
 
     print( "\n--- Calculation results file (under dir 'results/') ---" )
     raw_store_file = (
@@ -250,18 +255,19 @@ def run_option_2():
 
     # Step 2: Choose which graph to generate
     print( "\n--- Choose generation of graph ---" )
-    print( "1. Scatter plot just GC3" )
-    print( "2. Scatter plot both GC and C3 (on the same place)" )
-    print( "3. Scatter plot GC in relation to GC3 (GC to GC3)" )
-    print( "4. Generate all 3 graphs" )
+    print( "1. Scatter plot just GC" )
+    print( "2. Scatter plot just GC3" )
+    print( "3. Scatter plot both GC and C3 (on the same place)" )
+    print( "4. Scatter plot GC in relation to GC3 (GC to GC3)" )
+    print( "5. Generate all 4 graphs" )
     print( "-" * 65)
 
-    plot_choice = input(" Choose option [1-4]: ").strip()
+    plot_choice = input(" Choose option [1-5]: ").strip()
 
     chosen_plots = []
     if plot_choice in PLOT_SCRIPTS_2:
         chosen_plots.append( PLOT_SCRIPTS_2[ plot_choice ] )
-    elif plot_choice == "4":
+    elif plot_choice == "5":
         chosen_plots = list( PLOT_SCRIPTS_2.values() )
     else:
         print( "\n[!] Invalid choice. Omit graph generation." )

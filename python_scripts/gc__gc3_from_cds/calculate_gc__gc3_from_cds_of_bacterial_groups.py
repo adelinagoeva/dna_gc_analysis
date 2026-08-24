@@ -5,7 +5,7 @@ import calculate_gc__gc3_from_cds
 
 if len( sys.argv ) < 4:
 	print( "Error: expected at least 3 arguments" )
-	print( f"{sys.argv[ 0 ]} sort/nosort calculated_gc_gc3.txt bacteria_1.cds.fna [bacteria_2.cds.fna, bacteria_3.cds.fna, ...]" )
+	print( f"{sys.argv[ 0 ]} gcsort/gc3sort/nosort calculated_gc_gc3.txt bacteria_1.cds.fna [bacteria_2.cds.fna, bacteria_3.cds.fna, ...]" )
 	sys.exit( 1 )
 
 sort_flag = sys.argv[ 1 ]
@@ -26,7 +26,10 @@ for dna_filename in genome_list:
 
 	bacteria_gc_list.append( result )
 
-if sort_flag == "sort":
+if sort_flag == "gcsort":
+	bacteria_gc_list.sort( key = lambda item: float( item.split( "," )[ -2 ] ) )
+
+if sort_flag == "gc3sort":
 	bacteria_gc_list.sort( key = lambda item: float( item.split( "," )[ -1 ] ) )
 
 ##print( bacteria_gc_list )
